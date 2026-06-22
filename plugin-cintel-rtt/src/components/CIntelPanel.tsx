@@ -57,9 +57,19 @@ type TabType = 'transcript' | 'agent-view' | 'operator-log';
 // manager: Flex Manager, task: Flex Task
 // You will need to extract callSid or other identifiers from task as needed for SSE
 export default function CINTELPanel({ manager, task }: CINTELPanelProps) {
-  const callSid = task?.attributes?.call_sid;
+  // Support both inbound and outbound calls
+  // Inbound: call_sid
+  // Outbound: conference.participants.customer (the customer call leg)
+  const callSid =
+    task?.attributes?.call_sid ||
+    task?.attributes?.conference?.participants?.customer ||
+    task?.attributes?.conference_sid ||
+    task?.attributes?.conference?.sid ||
+    task?.sid; // Fallback to task sid
+
   const channel =
-    task?.attributes?.channelType || task?.taskChannelUniqueName === 'voice'
+    task?.taskChannelUniqueName === 'voice' ||
+    task?.attributes?.direction === 'outbound'
       ? 'voice'
       : 'digital';
   const [activeTab, setActiveTab] = useState<TabType>('transcript');
@@ -68,23 +78,65 @@ export default function CINTELPanel({ manager, task }: CINTELPanelProps) {
   const [transcript, setTranscript] = useState<TranscriptEntry[]>([]);
   const [operatorResults, setOperatorResults] = useState<OperatorResult[]>([]);
   const eventSourceRef = useRef<EventSource | null>(null);
+  const previousTaskSidRef = useRef<string | null>(null);
 
   // Server URL from environment or default
   const serverUrl = process.env.REACT_APP_BACKEND_URL || '';
 
   // Log URLs only on first load
   useEffect(() => {
-    console.log('CINTELPanel: Using server URL:', serverUrl);
+    console.log('CINTELPanel: Component mounted/updated', {
+      serverUrl,
+      taskChannelUniqueName: task?.taskChannelUniqueName,
+      taskSid: task?.sid,
+      direction: task?.attributes?.direction,
+      call_sid: task?.attributes?.call_sid,
+      customer_call_sid: task?.attributes?.conference?.participants?.customer,
+      conference_sid: task?.attributes?.conference_sid,
+      conference: task?.attributes?.conference,
+      resolvedCallSid: callSid,
+      channel,
+      allTaskAttributes: task?.attributes,
+    });
+  }, [task?.sid, callSid]);
 
-    console.log('Active task channel type:', channel);
-  }, []);
+  // Reset state when task changes
+  useEffect(() => {
+    const currentTaskSid = task?.sid;
+
+    if (currentTaskSid && currentTaskSid !== previousTaskSidRef.current) {
+      console.log('CINTELPanel: Task changed, resetting state', {
+        previousSid: previousTaskSidRef.current,
+        currentSid: currentTaskSid,
+        callSid: callSid,
+      });
+
+      // Reset all state
+      setTranscript([]);
+      setOperatorResults([]);
+      setUnreadCount(0);
+      previousCountRef.current = 0;
+      setActiveTab('transcript');
+
+      previousTaskSidRef.current = currentTaskSid;
+    }
+  }, [task?.sid, callSid]);
 
   // SSE connection for transcript and operator results
   useEffect(() => {
-    if (!callSid) return;
+    console.log('CINTELPanel: SSE useEffect triggered', {
+      callSid: callSid,
+      serverUrl: serverUrl,
+    });
+
+    if (!callSid) {
+      console.log('CINTELPanel: No callSid available, skipping SSE connection');
+      return;
+    }
 
     // Clean up previous connection
     if (eventSourceRef.current) {
+      console.log('CINTELPanel: Closing previous SSE connection');
       eventSourceRef.current.close();
       eventSourceRef.current = null;
     }
@@ -98,32 +150,41 @@ export default function CINTELPanel({ manager, task }: CINTELPanelProps) {
     );
 
     eventSource.onopen = () => {
-      // Connection established
+      console.log('CINTELPanel: SSE connection opened successfully');
     };
 
     eventSource.onmessage = (event) => {
       try {
         const data = JSON.parse(event.data);
+        console.log('CINTELPanel: Received SSE message', data.type);
         switch (data.type) {
           case 'initial':
+            console.log('CINTELPanel: Initial data received', {
+              transcriptCount: data.transcript?.length || 0,
+              operatorResultsCount: data.operatorResults?.length || 0,
+            });
             if (data.transcript) setTranscript(data.transcript);
             if (data.operatorResults) setOperatorResults(data.operatorResults);
             break;
           case 'transcript':
+            console.log('CINTELPanel: Transcript update received');
             setTranscript((prev) => [...prev, data.data]);
             break;
           case 'operator-result':
+            console.log('CINTELPanel: Operator result received');
             setOperatorResults((prev) => [...prev, data.data]);
             break;
           default:
+            console.log('CINTELPanel: Unknown message type', data.type);
             break;
         }
       } catch (error) {
-        // Handle parse error
+        console.error('CINTELPanel: Error parsing SSE message', error);
       }
     };
 
-    eventSource.onerror = () => {
+    eventSource.onerror = (error) => {
+      console.error('CINTELPanel: SSE connection error', error);
       eventSource.close();
     };
 
