@@ -108,10 +108,21 @@ export default function ScriptAdherence({
           !!category &&
           category.criteria.some(
             (c: { criteria_key: string; criteria_met: string }) =>
-              c.criteria_key === 'Action' && c.criteria_met === 'Succeeded',
+              c.criteria_key.startsWith('Action') &&
+              c.criteria_met === 'Succeeded',
           );
-        return { ...dim, completed };
+        return { ...dim, completed: dim.completed || completed };
       });
+
+      // Only update state if dimensions have changed
+      const hasChanged = updated.some(
+        (dim, index) => dim.completed !== prev[index].completed,
+      );
+      if (!hasChanged) {
+        console.log('[ScriptAdherence] No changes detected, skipping update');
+        return prev;
+      }
+
       console.log('[ScriptAdherence] Updated dimensions:', updated);
       return updated;
     });
