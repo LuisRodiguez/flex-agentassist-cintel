@@ -2,25 +2,25 @@
   {
     "key": "Greeting",
     "label": "Greeting",
-    "description": "Agent greets customer, states company name, and introduces themselves",
+    "description": "Greet and verify customer & site",
     "completed": false
   },
   {
     "key": "Verification",
     "label": "Verification",
-    "description": "Agent verifies customer move date and to/from cities",
+    "description": "Agent validates the details of the customer's issue",
     "completed": false
   },
   {
-    "key": "Move Details",
-    "label": "Move Details",
-    "description": "Agent collects details about the customer's move, including special items, international moves, customs, and insurance options",
+    "key": "More Details",
+    "label": "More Details",
+    "description": "Investigate additional details",
     "completed": false
   },
   {
     "key": "Confirmation",
     "label": "Confirmation",
-    "description": "Agent summarizes next steps (preferred channel, video walkthrough)",
+    "description": "Agent summarizes next steps",
     "completed": false
   }
 ]

@@ -202,7 +202,7 @@ export default function ScriptAdherence({
 
       {/* Dimensions */}
       <div
-        style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}
+        style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '10px' }}
       >
         {dimensions.map((dimension) => (
           <div
@@ -212,7 +212,7 @@ export default function ScriptAdherence({
               borderRadius: '6px',
               backgroundColor: dimension.completed ? '#d1fae5' : '#f3f4f6',
               border: `2px solid ${dimension.completed ? '#10b981' : '#e5e7eb'}`,
-              transition: 'all 0.3s ease-in-out',
+              transition: 'all 0.2s ease-in-out',
             }}
           >
             <div
@@ -258,5 +258,6 @@ export default function ScriptAdherence({
         ))}
       </div>
     </div>
+
   );
 }
